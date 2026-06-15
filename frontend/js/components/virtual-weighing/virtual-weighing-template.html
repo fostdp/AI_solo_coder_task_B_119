@@ -1,0 +1,163 @@
+<div class="virtual-weighing-component">
+    <div class="vw-header">
+        <h3 class="vw-title"><i class="bi bi-controller"></i> 虚拟称量体验</h3>
+        <div class="vw-header-actions">
+            <div class="vw-balance-type-group">
+                <button class="vw-btn vw-btn-outline-primary active" data-balance-type="EQUAL_ARM">
+                    ⚖️ 等臂天平
+                </button>
+                <button class="vw-btn vw-btn-outline-primary" data-balance-type="UNEQUAL_ARM">
+                    🔧 不等臂天平
+                </button>
+            </div>
+            <button class="vw-btn vw-btn-outline-secondary" id="vwQuickExperienceBtn">
+                <i class="bi bi-lightning"></i> 快速体验
+            </button>
+        </div>
+    </div>
+
+    <div class="vw-content">
+        <div class="vw-sidebar">
+            <div class="vw-card">
+                <div class="vw-card-header">
+                    <h6 class="vw-card-title">物品库</h6>
+                    <div class="vw-category-filter">
+                        <button class="vw-filter-btn active" data-category="all">全部</button>
+                        <button class="vw-filter-btn" data-category="weight">砝码</button>
+                        <button class="vw-filter-btn" data-category="artifact">文物</button>
+                        <button class="vw-filter-btn" data-category="daily">日常</button>
+                        <button class="vw-filter-btn" data-category="fun">趣味</button>
+                    </div>
+                </div>
+                <div class="vw-card-body vw-item-palette" id="vwItemPalette"></div>
+            </div>
+        </div>
+
+        <div class="vw-main">
+            <div class="vw-pans-row">
+                <div class="vw-pan-container">
+                    <div class="vw-pan-drop-zone" id="vwLeftPanDrop">
+                        <div class="vw-pan-header">
+                            <h6>⬅️ 左盘</h6>
+                            <div class="vw-weight-summary" id="vwLeftWeightSummary">
+                                <div class="vw-weight-value">0.00 g</div>
+                                <div class="vw-weight-count">0 件物品</div>
+                            </div>
+                        </div>
+                        <div class="vw-pan-body" id="vwLeftPanItems">
+                            <div class="vw-empty-hint">
+                                <i class="bi bi-inbox"></i>
+                                <span>拖拽物品或点击添加</span>
+                            </div>
+                        </div>
+                        <div class="vw-pan-footer">
+                            <button class="vw-btn vw-btn-sm vw-btn-outline-danger" id="vwClearLeftBtn">
+                                <i class="bi bi-trash"></i> 清空
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="vw-actions-column">
+                    <button class="vw-btn vw-btn-sm vw-btn-outline-secondary" id="vwSwapPansBtn">
+                        <i class="bi bi-arrow-left-right"></i> 交换
+                    </button>
+                    <button class="vw-btn vw-btn-lg vw-btn-success" id="vwWeighBtn">
+                        <i class="bi bi-play-fill"></i>
+                        <span>称量</span>
+                    </button>
+                </div>
+
+                <div class="vw-pan-container">
+                    <div class="vw-pan-drop-zone" id="vwRightPanDrop">
+                        <div class="vw-pan-header">
+                            <h6>右盘 ➡️</h6>
+                            <div class="vw-weight-summary" id="vwRightWeightSummary">
+                                <div class="vw-weight-value">0.00 g</div>
+                                <div class="vw-weight-count">0 件物品</div>
+                            </div>
+                        </div>
+                        <div class="vw-pan-body" id="vwRightPanItems">
+                            <div class="vw-empty-hint">
+                                <i class="bi bi-inbox"></i>
+                                <span>拖拽物品或点击添加</span>
+                            </div>
+                        </div>
+                        <div class="vw-pan-footer">
+                            <button class="vw-btn vw-btn-sm vw-btn-outline-danger" id="vwClearRightBtn">
+                                <i class="bi bi-trash"></i> 清空
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="vw-balance-animation" id="vwBalanceAnimation">
+                <div class="vw-balance-stand">
+                    <div class="vw-balance-pillar"></div>
+                    <div class="vw-balance-beam" id="vwBalanceBeam">
+                        <div class="vw-beam-string vw-left-string"></div>
+                        <div class="vw-beam-string vw-right-string"></div>
+                        <div class="vw-pan vw-left-pan" id="vwAnimLeftPan"></div>
+                        <div class="vw-pan vw-right-pan" id="vwAnimRightPan"></div>
+                    </div>
+                    <div class="vw-balance-base"></div>
+                </div>
+            </div>
+
+            <div class="vw-result-section" id="vwBalanceStatus"></div>
+
+            <div class="vw-info-row">
+                <div class="vw-info-col">
+                    <div class="vw-card">
+                        <div class="vw-card-header">
+                            <h6 class="vw-card-title"><i class="bi bi-arrow-left-right"></i> 多单位换算</h6>
+                        </div>
+                        <div class="vw-card-body vw-converted-weights" id="vwConvertedWeights">
+                            <div class="vw-empty-hint small">
+                                <span>称量后显示换算结果</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="vw-info-col">
+                    <div class="vw-card vw-card-light">
+                        <div class="vw-card-header">
+                            <h6 class="vw-card-title"><i class="bi bi-book-fill"></i> 文化解读</h6>
+                        </div>
+                        <div class="vw-card-body vw-cultural-context" id="vwCulturalContext">
+                            <div class="vw-empty-hint small">
+                                <span>称量后显示文化背景</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="vw-card vw-mt-3">
+                        <div class="vw-card-header">
+                            <h6 class="vw-card-title"><i class="bi bi-cpu-fill"></i> 杠杆原理</h6>
+                        </div>
+                        <div class="vw-card-body vw-physics-info" id="vwPhysicsInfo">
+                            <div class="vw-formula-box">
+                                <strong>F₁ × L₁ = F₂ × L₂</strong>
+                                <div class="vw-formula-desc">动力 × 动力臂 = 阻力 × 阻力臂</div>
+                            </div>
+                            <div class="vw-moment-row">
+                                <div class="vw-moment-item">
+                                    <div class="vw-moment-label">左力矩</div>
+                                    <div class="vw-moment-value" id="vwLeftMoment">0.0 g·L</div>
+                                </div>
+                                <div class="vw-moment-item">
+                                    <div class="vw-moment-label">右力矩</div>
+                                    <div class="vw-moment-value" id="vwRightMoment">0.0 g·L</div>
+                                </div>
+                                <div class="vw-moment-item">
+                                    <div class="vw-moment-label">力矩差</div>
+                                    <div class="vw-moment-value" id="vwMomentDiff">0.0 g·L</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
