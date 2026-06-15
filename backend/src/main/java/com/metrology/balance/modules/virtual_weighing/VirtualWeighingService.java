@@ -20,10 +20,35 @@ public class VirtualWeighingService {
     @Autowired
     private VirtualWeighingItemRepository itemRepository;
 
-    private static final double DEFAULT_STIFFNESS = 25.0;
-    private static final double DEFAULT_DAMPING = 1.5;
-    private static final double GRAVITY = 9.81;
-    private static final double ARM_LENGTH = 180.0;
+    private static final double GRAVITY = 9.80665;
+    private static final double ARM_LENGTH_EQUAL = 180.0;
+    private static final double BEAM_MASS_EQUAL = 45.0;
+    private static final double BEAM_CENTER_OF_GRAVITY_OFFSET = 0.15;
+    private static final double KNIFE_EDGE_RADIUS_EQUAL = 0.3;
+    private static final double AIR_VISCOSITY = 1.81e-5;
+    private static final double BEAM_WIDTH = 6.0;
+    private static final double BEAM_THICKNESS = 3.0;
+    private static final double TORSIONAL_STIFFNESS_BRONZE = 85.0;
+    private static final double TORSIONAL_STIFFNESS_STEEL = 200.0;
+    private static final double TORSIONAL_STIFFNESS_AGATE = 350.0;
+    private static final Map<String, Double> MATERIAL_DAMPING = new HashMap<>();
+    private static final Map<String, Double> MATERIAL_STIFFNESS = new HashMap<>();
+
+    static {
+        MATERIAL_DAMPING.put("青铜", 0.08);
+        MATERIAL_DAMPING.put("钢", 0.05);
+        MATERIAL_DAMPING.put("铁", 0.06);
+        MATERIAL_DAMPING.put("玉石", 0.02);
+        MATERIAL_DAMPING.put("玛瑙", 0.015);
+        MATERIAL_DAMPING.put("木", 0.15);
+
+        MATERIAL_STIFFNESS.put("青铜", TORSIONAL_STIFFNESS_BRONZE);
+        MATERIAL_STIFFNESS.put("钢", TORSIONAL_STIFFNESS_STEEL);
+        MATERIAL_STIFFNESS.put("铁", 160.0);
+        MATERIAL_STIFFNESS.put("玉石", 280.0);
+        MATERIAL_STIFFNESS.put("玛瑙", TORSIONAL_STIFFNESS_AGATE);
+        MATERIAL_STIFFNESS.put("木", 12.0);
+    }
 
     public List<VirtualWeighingItem> getAllItems() {
         return itemRepository.findByIsActiveTrueOrderByDisplayOrderAsc();
@@ -78,36 +103,64 @@ public class VirtualWeighingService {
         result.setMassDifference(leftMass - rightMass);
         result.setBalanceType(type);
 
-        double leftArm = ARM_LENGTH;
-        double rightArm = ARM_LENGTH;
+        double leftArm = ARM_LENGTH_EQUAL;
+        double rightArm = ARM_LENGTH_EQUAL;
+        double beamMass = BEAM_MASS_EQUAL;
+        double knifeEdgeRadius = KNIFE_EDGE_RADIUS_EQUAL;
+        String beamMaterial = "青铜";
         if ("UNEQUAL_ARM".equals(type)) {
             leftArm = 50.0;
             rightArm = 200.0;
+            beamMass = 60.0;
+            knifeEdgeRadius = 0.5;
         }
 
-        double leftTorque = leftMass * leftArm;
-        double rightTorque = rightMass * rightArm;
-        double torqueDifference = leftTorque - rightTorque;
-        result.setTorqueDifference(torqueDifference);
+        double leftTorque_Nm = leftMass / 1000.0 * leftArm / 1000.0 * GRAVITY;
+        double rightTorque_Nm = rightMass / 1000.0 * rightArm / 1000.0 * GRAVITY;
+        double torqueDifference_Nm = leftTorque_Nm - rightTorque_Nm;
+        double torqueDifference_gmm = leftMass * leftArm - rightMass * rightArm;
+        result.setTorqueDifference(torqueDifference_gmm);
 
-        double swingAngle = calculateSwingAngle(leftTorque, rightTorque, leftArm, rightArm);
+        double beamMomentOfInertia = calculateBeamMomentOfInertia(beamMass, leftArm, rightArm, BEAM_WIDTH, BEAM_THICKNESS);
+        double leftMassMomentOfInertia = leftMass / 1000.0 * leftArm * leftArm / 1000000.0;
+        double rightMassMomentOfInertia = rightMass / 1000.0 * rightArm * rightArm / 1000000.0;
+        double totalMomentOfInertia = beamMomentOfInertia + leftMassMomentOfInertia + rightMassMomentOfInertia;
+
+        double baseStiffness = MATERIAL_STIFFNESS.getOrDefault(beamMaterial, TORSIONAL_STIFFNESS_BRONZE);
+        double torsionalStiffness = baseStiffness * Math.pow(knifeEdgeRadius, 4) / (leftArm + rightArm) * 1000.0;
+        torsionalStiffness = Math.max(0.005, torsionalStiffness / 1000000.0);
+
+        double materialDampingCoeff = MATERIAL_DAMPING.getOrDefault(beamMaterial, 0.08);
+        double airDamping = calculateAirDamping(leftArm, rightArm, BEAM_WIDTH, BEAM_THICKNESS);
+        double frictionDamping = calculateKnifeEdgeFrictionDamping(beamMass + leftMass + rightMass, knifeEdgeRadius);
+        double totalDampingCoeff = materialDampingCoeff * 2.0 * Math.sqrt(torsionalStiffness * totalMomentOfInertia);
+        totalDampingCoeff = Math.max(totalDampingCoeff, airDamping + frictionDamping);
+
+        double naturalFrequency = Math.sqrt(torsionalStiffness / totalMomentOfInertia);
+        double dampingRatio = totalDampingCoeff / (2.0 * Math.sqrt(torsionalStiffness * totalMomentOfInertia));
+        dampingRatio = Math.min(0.95, dampingRatio);
+
+        double dampedFrequency = naturalFrequency * Math.sqrt(1.0 - dampingRatio * dampingRatio);
+
+        double swingAngle = calculateRealSwingAngle(torqueDifference_Nm, torsionalStiffness, dampingRatio);
         result.setSwingAngle(swingAngle);
 
-        double equilibriumTime = calculateEquilibriumTime(Math.abs(torqueDifference), leftMass + rightMass);
+        double equilibriumTime = calculateRealEquilibriumTime(dampingRatio, naturalFrequency);
         result.setEquilibriumTime(equilibriumTime);
 
         String balanceStatus;
-        double tolerance = 0.01;
-        if (Math.abs(torqueDifference) < tolerance) {
+        double tolerance = 0.5;
+        if (Math.abs(torqueDifference_gmm) < tolerance) {
             balanceStatus = "BALANCED";
-        } else if (torqueDifference > 0) {
+        } else if (torqueDifference_gmm > 0) {
             balanceStatus = "LEFT_HEAVY";
         } else {
             balanceStatus = "RIGHT_HEAVY";
         }
         result.setBalanceStatus(balanceStatus);
 
-        double relativeError = Math.abs(torqueDifference) / Math.max(leftTorque, rightTorque);
+        double maxTorque = Math.max(Math.abs(leftMass * leftArm), Math.abs(rightMass * rightArm));
+        double relativeError = Math.abs(torqueDifference_gmm) / Math.max(maxTorque, 0.01);
         double precisionGrade = Math.max(0, 100 - relativeError * 100000);
         result.setRelativeError(relativeError);
         result.setPrecisionGrade(precisionGrade);
@@ -115,22 +168,36 @@ public class VirtualWeighingService {
         Map<String, Object> physicsParams = new LinkedHashMap<>();
         physicsParams.put("leftArmLength_mm", leftArm);
         physicsParams.put("rightArmLength_mm", rightArm);
-        physicsParams.put("leftTorque_gmm", leftTorque);
-        physicsParams.put("rightTorque_gmm", rightTorque);
-        physicsParams.put("stiffness", DEFAULT_STIFFNESS);
-        physicsParams.put("damping", DEFAULT_DAMPING);
-        physicsParams.put("gravity", GRAVITY);
-        physicsParams.put("oscillationFrequency", Math.sqrt(DEFAULT_STIFFNESS / ((leftMass + rightMass) / 1000 + 0.1)));
+        physicsParams.put("leftTorque_gmm", leftMass * leftArm);
+        physicsParams.put("rightTorque_gmm", rightMass * rightArm);
+        physicsParams.put("beamMomentOfInertia_kgm2", beamMomentOfInertia);
+        physicsParams.put("totalMomentOfInertia_kgm2", totalMomentOfInertia);
+        physicsParams.put("torsionalStiffness_Nm_per_rad", torsionalStiffness);
+        physicsParams.put("materialDampingCoefficient", materialDampingCoeff);
+        physicsParams.put("airDampingCoefficient", airDamping);
+        physicsParams.put("frictionDampingCoefficient", frictionDamping);
+        physicsParams.put("totalDampingCoefficient", totalDampingCoeff);
+        physicsParams.put("naturalFrequency_rad_per_s", naturalFrequency);
+        physicsParams.put("dampingRatio_xi", dampingRatio);
+        physicsParams.put("dampedFrequency_rad_per_s", dampedFrequency);
+        physicsParams.put("gravity_m_per_s2", GRAVITY);
+        physicsParams.put("oscillationFrequency_Hz", naturalFrequency / (2 * Math.PI));
+        physicsParams.put("beamMass_g", beamMass);
+        physicsParams.put("knifeEdgeRadius_mm", knifeEdgeRadius);
         result.setPhysicsParameters(physicsParams);
 
         Map<String, Object> animationData = new LinkedHashMap<>();
+        List<Map<String, Object>> oscillationFrames = generateOscillationFrames(
+                swingAngle, dampingRatio, naturalFrequency, dampedFrequency, equilibriumTime);
         animationData.put("initialAngle", swingAngle);
-        animationData.put("decayTime", equilibriumTime);
-        animationData.put("oscillationCount", (int) (equilibriumTime * Math.sqrt(DEFAULT_STIFFNESS / ((leftMass + rightMass) / 1000 + 0.1)) / (2 * Math.PI)));
-        animationData.put("finalAngle", swingAngle * Math.exp(-DEFAULT_DAMPING * equilibriumTime / 2));
+        animationData.put("finalAngle_deg", swingAngle * Math.exp(-dampingRatio * naturalFrequency * equilibriumTime));
+        animationData.put("decayTime_s", equilibriumTime);
+        animationData.put("oscillationCount", (int) (equilibriumTime * dampedFrequency / (2 * Math.PI)));
+        animationData.put("dampedFrequency_Hz", dampedFrequency / (2 * Math.PI));
+        animationData.put("oscillationFrames", oscillationFrames);
         result.setAnimationData(animationData);
 
-        List<String> insights = generateInsights(leftItems, rightItems, leftMass, rightMass, torqueDifference, balanceStatus);
+        List<String> insights = generateInsights(leftItems, rightItems, leftMass, rightMass, torqueDifference_gmm, balanceStatus);
         result.setCulturalInsights(insights);
 
         Map<String, Object> conversion = generateMassConversion(leftMass, rightMass);
@@ -144,23 +211,94 @@ public class VirtualWeighingService {
         return result;
     }
 
-    private double calculateSwingAngle(double leftTorque, double rightTorque, double leftArm, double rightArm) {
-        double torqueDiff = leftTorque - rightTorque;
-        double avgArm = (leftArm + rightArm) / 2.0;
-        double maxTorque = 1000.0 * avgArm;
-
-        double normalizedTorque = Math.min(1.0, Math.abs(torqueDiff) / maxTorque);
-        double angle = Math.signum(torqueDiff) * normalizedTorque * 15.0;
-
-        return angle;
+    private double calculateBeamMomentOfInertia(double beamMass_g, double leftArm_mm,
+                                                  double rightArm_mm, double width_mm, double thickness_mm) {
+        double beamMass_kg = beamMass_g / 1000.0;
+        double totalLength_m = (leftArm_mm + rightArm_mm) / 1000.0;
+        double w_m = width_mm / 1000.0;
+        double t_m = thickness_mm / 1000.0;
+        double I_rect = beamMass_kg * (totalLength_m * totalLength_m + w_m * w_m) / 12.0;
+        double I_rod = beamMass_kg * totalLength_m * totalLength_m / 12.0;
+        return Math.max(I_rect, I_rod);
     }
 
-    private double calculateEquilibriumTime(double torqueDiff, double totalMass) {
-        double baseTime = 2.0;
-        double massFactor = Math.sqrt(totalMass / 100.0);
-        double torqueFactor = 1.0 + Math.abs(torqueDiff) / 100.0;
+    private double calculateAirDamping(double leftArm_mm, double rightArm_mm, double width_mm, double thickness_mm) {
+        double totalLength_m = (leftArm_mm + rightArm_mm) / 1000.0;
+        double w_m = width_mm / 1000.0;
+        double characteristicLength = totalLength_m;
+        double reynoldsNumber = 1.225 * 1.0 * characteristicLength / AIR_VISCOSITY;
+        double dragCoefficient = reynoldsNumber < 1000 ? 10.0 / Math.sqrt(reynoldsNumber) : 1.2;
+        double frontalArea = totalLength_m * w_m;
+        double damping = 0.5 * 1.225 * dragCoefficient * frontalArea * characteristicLength;
+        return Math.max(0.001, damping / 10.0);
+    }
 
-        return Math.min(10.0, baseTime * massFactor * torqueFactor);
+    private double calculateKnifeEdgeFrictionDamping(double totalMass_g, double knifeRadius_mm) {
+        double totalMass_kg = totalMass_g / 1000.0;
+        double normalForce = totalMass_kg * GRAVITY;
+        double frictionCoeff = 0.001;
+        double r_m = knifeRadius_mm / 1000.0;
+        return frictionCoeff * normalForce * r_m;
+    }
+
+    private double calculateRealSwingAngle(double torqueDiff_Nm, double torsionalStiffness,
+                                            double dampingRatio) {
+        double staticAngle_rad = torqueDiff_Nm / Math.max(torsionalStiffness, 0.001);
+        double maxAngle_rad = 15.0 * Math.PI / 180.0;
+        if (Math.abs(staticAngle_rad) > maxAngle_rad) {
+            staticAngle_rad = Math.signum(staticAngle_rad) * maxAngle_rad;
+        }
+        double dynamicOvershoot = Math.exp(-dampingRatio * Math.PI / Math.sqrt(Math.max(0.001, 1.0 - dampingRatio * dampingRatio)));
+        double peakAngle_rad = staticAngle_rad * (1.0 + dynamicOvershoot);
+        return peakAngle_rad * 180.0 / Math.PI;
+    }
+
+    private double calculateRealEquilibriumTime(double dampingRatio, double naturalFrequency) {
+        if (dampingRatio >= 1.0) {
+            return 4.0 / (dampingRatio * naturalFrequency);
+        }
+        double settlingTime = 4.0 / (dampingRatio * Math.max(naturalFrequency, 0.1));
+        return Math.max(0.5, Math.min(15.0, settlingTime));
+    }
+
+    private List<Map<String, Object>> generateOscillationFrames(double initialAngle_deg, double dampingRatio,
+                                                                  double naturalFrequency, double dampedFrequency,
+                                                                  double totalTime_s) {
+        List<Map<String, Object>> frames = new ArrayList<>();
+        int frameCount = 30;
+        double dt = totalTime_s / frameCount;
+        double initialAngle_rad = initialAngle_deg * Math.PI / 180.0;
+
+        for (int i = 0; i <= frameCount; i++) {
+            double t = i * dt;
+            double envelope = Math.exp(-dampingRatio * naturalFrequency * t);
+            double angle_rad;
+            if (dampingRatio >= 1.0) {
+                double alpha1 = (-dampingRatio + Math.sqrt(dampingRatio * dampingRatio - 1.0)) * naturalFrequency;
+                double alpha2 = (-dampingRatio - Math.sqrt(dampingRatio * dampingRatio - 1.0)) * naturalFrequency;
+                angle_rad = initialAngle_rad * (alpha2 * Math.exp(alpha1 * t) - alpha1 * Math.exp(alpha2 * t)) / (alpha2 - alpha1);
+            } else {
+                angle_rad = initialAngle_rad * envelope * Math.cos(dampedFrequency * t);
+            }
+            double angle_deg = angle_rad * 180.0 / Math.PI;
+            double angularVelocity_rad_s;
+            if (dampingRatio >= 1.0) {
+                double alpha1 = (-dampingRatio + Math.sqrt(dampingRatio * dampingRatio - 1.0)) * naturalFrequency;
+                double alpha2 = (-dampingRatio - Math.sqrt(dampingRatio * dampingRatio - 1.0)) * naturalFrequency;
+                angularVelocity_rad_s = initialAngle_rad * (alpha1 * alpha2 * Math.exp(alpha1 * t) - alpha1 * alpha2 * Math.exp(alpha2 * t)) / (alpha2 - alpha1);
+            } else {
+                angularVelocity_rad_s = -initialAngle_rad * envelope * (
+                        dampingRatio * naturalFrequency * Math.cos(dampedFrequency * t)
+                                + dampedFrequency * Math.sin(dampedFrequency * t));
+            }
+            Map<String, Object> frame = new LinkedHashMap<>();
+            frame.put("time_s", t);
+            frame.put("angle_deg", angle_deg);
+            frame.put("angularVelocity_deg_per_s", angularVelocity_rad_s * 180.0 / Math.PI);
+            frame.put("envelope", envelope);
+            frames.add(frame);
+        }
+        return frames;
     }
 
     private List<String> generateInsights(List<VirtualWeighingItem> leftItems,
