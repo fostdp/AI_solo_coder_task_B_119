@@ -57,20 +57,23 @@ public class ManufacturingReconstructionService {
 
     @Transactional
     public ManufacturingAnalysis analyzeManufacturingTechnology(Integer balanceId) {
-        Balance balance = balanceRepository.findById(balanceId)
+        Balance balance = balanceRepository.findById(balanceId.longValue())
                 .orElseThrow(() -> new IllegalArgumentException("天平不存在: " + balanceId));
 
         List<BalanceMeasurement> measurements = measurementRepository
-                .findTop100ByBalanceIdOrderByMeasurementTimeDesc(balanceId);
+                .findTop100ByBalanceIdOrderByMeasurementTimeDesc(balanceId.longValue());
 
         ManufacturingAnalysis analysis = new ManufacturingAnalysis();
         analysis.setBalanceId(balanceId);
         analysis.setAnalysisTime(LocalDateTime.now());
 
-        double knifeRadius = balance.getKnifeEdgeRadius();
-        double armLeft = balance.getLeftArmLength();
-        double armRight = balance.getRightArmLength();
-        String material = balance.getKnifeEdgeMaterial();
+        double knifeRadius = balance.getKnifeEdgeRadius() != null ?
+                balance.getKnifeEdgeRadius().doubleValue() : 0.5;
+        double armLeft = balance.getLeftArmLength() != null ?
+                balance.getLeftArmLength().doubleValue() : 180.0;
+        double armRight = balance.getRightArmLength() != null ?
+                balance.getRightArmLength().doubleValue() : 180.0;
+        String material = balance.getMaterial();
         if (material == null) material = "青铜";
 
         double avgWear = 0.0;
@@ -82,10 +85,10 @@ public class ManufacturingReconstructionService {
             DescriptiveStatistics frictionStats = new DescriptiveStatistics();
             for (BalanceMeasurement m : measurements) {
                 if (m.getKnifeEdgeWearDepth() != null) {
-                    wearStats.addValue(m.getKnifeEdgeWearDepth());
+                    wearStats.addValue(m.getKnifeEdgeWearDepth().doubleValue());
                 }
                 if (m.getKnifeEdgeFriction() != null) {
-                    frictionStats.addValue(m.getKnifeEdgeFriction());
+                    frictionStats.addValue(m.getKnifeEdgeFriction().doubleValue());
                 }
             }
             avgWear = wearStats.getN() > 0 ? wearStats.getMean() : 0.0;
