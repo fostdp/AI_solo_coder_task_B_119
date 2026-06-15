@@ -1,0 +1,130 @@
+<div class="craft-inferrer-component">
+    <div class="panel-header">
+        <h2><i class="bi bi-gear-wide-connected"></i> 古代天平制造工艺反演</h2>
+        <div class="panel-actions">
+            <button class="btn btn-secondary ci-back-btn">
+                <i class="bi bi-arrow-left"></i> 返回
+            </button>
+        </div>
+    </div>
+
+    <div class="panel-content">
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <label class="form-label">选择天平</label>
+                <select class="form-select ci-balance-select">
+                    <option value="">请选择天平...</option>
+                </select>
+            </div>
+            <div class="col-md-6 d-flex align-items-end gap-2">
+                <button class="btn btn-success ci-analyze-btn">
+                    <i class="bi bi-search"></i> 开始分析
+                </button>
+                <button class="btn btn-outline-primary ci-history-btn">
+                    <i class="bi bi-clock-history"></i> 历史记录
+                </button>
+                <button class="btn btn-outline-secondary ci-export-btn">
+                    <i class="bi bi-download"></i> 导出
+                </button>
+            </div>
+        </div>
+
+        <div class="ci-grade-banner"></div>
+
+        <div class="row mt-4">
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-bar-chart-fill"></i> 六维评分</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="ci-six-dimension-scores"></div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-gear"></i> 推断工艺方法</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="ci-craft-method"></div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-box-seam"></i> 材料分析</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="ci-material-analysis"></div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-shield-check"></i> 考古证据一致性</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="ci-archaeological-consistency"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-pie-chart"></i> 数据充分性等级</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="ci-data-adequacy"></div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-book"></i> 文献数据来源</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="ci-literature-sources"></div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-calculator"></i> 蒙特卡洛模拟</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="ci-monte-carlo">
+                            <div class="mb-3">
+                                <label class="form-label">模拟次数</label>
+                                <select class="form-select ci-mc-iterations">
+                                    <option value="1000">1,000 次</option>
+                                    <option value="10000" selected>10,000 次</option>
+                                    <option value="100000">100,000 次</option>
+                                    <option value="1000000">1,000,000 次</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary w-100 ci-mc-run-btn">
+                                <i class="bi bi-play-fill"></i> 运行模拟
+                            </button>
+                            <div class="ci-mc-results mt-3"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ci-history-list">
+                    <div class="alert alert-info">点击"历史记录"查看历史分析</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-rulers"></i> 不确定度预算</h5>
+            </div>
+            <div class="card-body">
+                <div class="ci-uncertainty-budget"></div>
+            </div>
+        </div>
+    </div>
+</div>
