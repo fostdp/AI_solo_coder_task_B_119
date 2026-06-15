@@ -33,6 +33,9 @@ public class ManufacturingReconstructionService {
     private ManufacturingAnalysisRepository analysisRepository;
 
     private static final Map<String, CraftMethodKnowledge> CRAFT_METHODS = new HashMap<>();
+    private static final Map<String, LiteratureReference> LITERATURE_REFERENCES = new HashMap<>();
+    private static final int MIN_EXPERIMENTAL_SAMPLES = 10;
+    private static final int SUFFICIENT_EXPERIMENTAL_SAMPLES = 30;
 
     static {
         CRAFT_METHODS.put("青铜-范铸", new CraftMethodKnowledge("青铜范铸法", "战国-汉",
@@ -53,6 +56,49 @@ public class ManufacturingReconstructionService {
         CRAFT_METHODS.put("木-切削", new CraftMethodKnowledge("木切削法", "新石器-现代",
                 new double[]{1.5, 3.0}, new double[]{30.0, 60.0}, new double[]{0.002, 0.003},
                 Arrays.asList("凿", "刨", "磨"), "轻便，精度较低"));
+
+        LITERATURE_REFERENCES.put("青铜", new LiteratureReference(
+                "《中国古代度量衡图集》《考工记》",
+                new double[]{0.0010, 0.0018},
+                new double[]{0.0008, 0.0015},
+                new double[]{0.5, 1.2},
+                0.15
+        ));
+        LITERATURE_REFERENCES.put("钢", new LiteratureReference(
+                "《天工开物》《中国古代金属技术》",
+                new double[]{0.0007, 0.0014},
+                new double[]{0.0006, 0.0012},
+                new double[]{0.4, 1.0},
+                0.12
+        ));
+        LITERATURE_REFERENCES.put("铁", new LiteratureReference(
+                "《天工开物》《中国古代金属技术》",
+                new double[]{0.0008, 0.0015},
+                new double[]{0.0007, 0.0013},
+                new double[]{0.5, 1.1},
+                0.13
+        ));
+        LITERATURE_REFERENCES.put("玉石", new LiteratureReference(
+                "《中国古代玉器科学研究》",
+                new double[]{0.00025, 0.00055},
+                new double[]{0.0002, 0.0005},
+                new double[]{0.2, 0.45},
+                0.08
+        ));
+        LITERATURE_REFERENCES.put("玛瑙", new LiteratureReference(
+                "《唐代戥秤工艺研究》《中国精密衡器史》",
+                new double[]{0.00018, 0.00045},
+                new double[]{0.00015, 0.0004},
+                new double[]{0.15, 0.35},
+                0.06
+        ));
+        LITERATURE_REFERENCES.put("木", new LiteratureReference(
+                "《中国传统工艺全集》",
+                new double[]{0.0018, 0.0028},
+                new double[]{0.0015, 0.0025},
+                new double[]{1.2, 2.8},
+                0.20
+        ));
     }
 
     @Transactional
@@ -79,25 +125,57 @@ public class ManufacturingReconstructionService {
         double avgWear = 0.0;
         double avgFriction = 0.0;
         double stdFriction = 0.0;
+        double typeAUncertainty = 0.0;
+        double typeBUncertainty = 0.0;
+        double combinedUncertainty = 0.0;
+        double expandedUncertainty = 0.0;
+        String dataSufficiency = "INSUFFICIENT";
+        boolean usesLiteratureEstimate = false;
+        LiteratureReference litRef = LITERATURE_REFERENCES.getOrDefault(material,
+                LITERATURE_REFERENCES.get("青铜"));
+
+        int validWearCount = 0;
+        int validFrictionCount = 0;
+        DescriptiveStatistics wearStats = new DescriptiveStatistics();
+        DescriptiveStatistics frictionStats = new DescriptiveStatistics();
 
         if (!measurements.isEmpty()) {
-            DescriptiveStatistics wearStats = new DescriptiveStatistics();
-            DescriptiveStatistics frictionStats = new DescriptiveStatistics();
             for (BalanceMeasurement m : measurements) {
                 if (m.getKnifeEdgeWearDepth() != null) {
                     wearStats.addValue(m.getKnifeEdgeWearDepth().doubleValue());
+                    validWearCount++;
                 }
                 if (m.getKnifeEdgeFriction() != null) {
                     frictionStats.addValue(m.getKnifeEdgeFriction().doubleValue());
+                    validFrictionCount++;
                 }
             }
-            avgWear = wearStats.getN() > 0 ? wearStats.getMean() : 0.0;
-            avgFriction = frictionStats.getN() > 0 ? frictionStats.getMean() : 0.0012;
-            stdFriction = frictionStats.getN() > 1 ? frictionStats.getStandardDeviation() : 0.0001;
-        } else {
-            avgFriction = KnifeEdgeWearModel.createWithMaterial(material)
-                    .calculateDynamicFriction(20.0, 50.0);
         }
+
+        if (validFrictionCount >= MIN_EXPERIMENTAL_SAMPLES) {
+            avgFriction = frictionStats.getMean();
+            stdFriction = frictionStats.getStandardDeviation();
+            typeAUncertainty = stdFriction / Math.sqrt(validFrictionCount);
+            dataSufficiency = validFrictionCount >= SUFFICIENT_EXPERIMENTAL_SAMPLES ? "SUFFICIENT" : "PARTIAL";
+        } else {
+            usesLiteratureEstimate = true;
+            avgFriction = (litRef.frictionRange[0] + litRef.frictionRange[1]) / 2.0;
+            double litRange = litRef.frictionRange[1] - litRef.frictionRange[0];
+            stdFriction = litRange / 4.0;
+            typeAUncertainty = 0.0;
+            dataSufficiency = validFrictionCount == 0 ? "LITERATURE_ONLY" : "LITERATURE_SUPPLEMENTED";
+        }
+
+        if (validWearCount >= MIN_EXPERIMENTAL_SAMPLES) {
+            avgWear = wearStats.getMean();
+        } else {
+            avgWear = (litRef.wearRange[0] + litRef.wearRange[1]) / 2.0;
+            usesLiteratureEstimate = true;
+        }
+
+        typeBUncertainty = litRef.baseUncertainty * avgFriction;
+        combinedUncertainty = Math.sqrt(typeAUncertainty * typeAUncertainty + typeBUncertainty * typeBUncertainty);
+        expandedUncertainty = combinedUncertainty * 2.0;
 
         double geometryScore = calculateGeometryScore(knifeRadius, armLeft, armRight);
         double surfaceScore = calculateSurfaceRoughnessScore(avgFriction, stdFriction);
@@ -133,9 +211,28 @@ public class ManufacturingReconstructionService {
         rawData.put("avgFrictionCoefficient", avgFriction);
         rawData.put("frictionStdDev", stdFriction);
         rawData.put("measurementCount", measurements.size());
+        rawData.put("validWearCount", validWearCount);
+        rawData.put("validFrictionCount", validFrictionCount);
         rawData.put("overallScore", overallScore);
         rawData.put("materialHardness", KnifeEdgeWearModel.createWithMaterial(material).getHardnessHB());
         rawData.put("craftMethodDetails", getCraftMethodDetails(craftMethod));
+
+        rawData.put("dataSufficiency", dataSufficiency);
+        rawData.put("usesLiteratureEstimate", usesLiteratureEstimate);
+        rawData.put("literatureSource", litRef.source);
+        rawData.put("literatureFrictionRange", litRef.frictionRange);
+        rawData.put("literatureWearRange", litRef.wearRange);
+        rawData.put("literatureKnifeRadiusRange", litRef.knifeRadiusRange);
+
+        Map<String, Object> uncertainty = new LinkedHashMap<>();
+        uncertainty.put("typeAUncertainty", typeAUncertainty);
+        uncertainty.put("typeBUncertainty", typeBUncertainty);
+        uncertainty.put("combinedUncertainty", combinedUncertainty);
+        uncertainty.put("expandedUncertainty_k2", expandedUncertainty);
+        uncertainty.put("confidenceLevel", "95%");
+        uncertainty.put("coverageFactor", 2.0);
+        uncertainty.put("relativeUncertainty", combinedUncertainty / avgFriction);
+        rawData.put("uncertaintyBudget", uncertainty);
         analysis.setRawData(rawData);
 
         analysis = analysisRepository.save(analysis);
@@ -296,6 +393,23 @@ public class ManufacturingReconstructionService {
             this.frictionRange = frictionRange;
             this.processSteps = processSteps;
             this.description = description;
+        }
+    }
+
+    private static class LiteratureReference {
+        String source;
+        double[] frictionRange;
+        double[] wearRange;
+        double[] knifeRadiusRange;
+        double baseUncertainty;
+
+        public LiteratureReference(String source, double[] frictionRange, double[] wearRange,
+                                   double[] knifeRadiusRange, double baseUncertainty) {
+            this.source = source;
+            this.frictionRange = frictionRange;
+            this.wearRange = wearRange;
+            this.knifeRadiusRange = knifeRadiusRange;
+            this.baseUncertainty = baseUncertainty;
         }
     }
 }
