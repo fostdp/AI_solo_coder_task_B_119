@@ -47,9 +47,9 @@ public interface BalanceMeasurementRepository extends JpaRepository<BalanceMeasu
                                        @Param("startTime") LocalDateTime startTime);
 
     @Query("SELECT m FROM BalanceMeasurement m WHERE m.balanceId = :balanceId ORDER BY m.measurementTime DESC")
-    List<BalanceMeasurement> findTop100ByBalanceIdOrderByMeasurementTimeDesc(@Param("balanceId") Integer balanceId, Pageable pageable);
+    List<BalanceMeasurement> findTop100ByBalanceIdOrderByMeasurementTimeDesc(@Param("balanceId") Long balanceId, Pageable pageable);
 
-    default List<BalanceMeasurement> findTop100ByBalanceIdOrderByMeasurementTimeDesc(Integer balanceId) {
+    default List<BalanceMeasurement> findTop100ByBalanceIdOrderByMeasurementTimeDesc(Long balanceId) {
         return findTop100ByBalanceIdOrderByMeasurementTimeDesc(balanceId, Pageable.ofSize(100));
     }
 }
