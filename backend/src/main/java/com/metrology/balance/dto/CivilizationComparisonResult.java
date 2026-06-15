@@ -25,6 +25,7 @@ public class CivilizationComparisonResult {
         private List<String> weaknesses;
         private String culturalSignificance;
         private String representativeArtifact;
+        private Map<String, Object> standardizationInfo;
 
         public String getName() {
             return name;
@@ -112,6 +113,14 @@ public class CivilizationComparisonResult {
 
         public void setRepresentativeArtifact(String representativeArtifact) {
             this.representativeArtifact = representativeArtifact;
+        }
+
+        public Map<String, Object> getStandardizationInfo() {
+            return standardizationInfo;
+        }
+
+        public void setStandardizationInfo(Map<String, Object> standardizationInfo) {
+            this.standardizationInfo = standardizationInfo;
         }
     }
 
