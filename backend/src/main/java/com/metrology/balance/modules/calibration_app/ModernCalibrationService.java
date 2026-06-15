@@ -34,6 +34,35 @@ public class ModernCalibrationService {
 
     private static final double[] CALIBRATION_MASSES = {0.0, 10.0, 20.0, 50.0, 100.0, 200.0, 500.0};
 
+    private static final Map<String, VibrationLevel> VIBRATION_LEVELS = new LinkedHashMap<>();
+    private static final Map<String, VibrationIsolationSystem> ISOLATION_SYSTEMS = new LinkedHashMap<>();
+
+    static {
+        VIBRATION_LEVELS.put("VC_A", new VibrationLevel("VC-A", "极安静实验室",
+                0.5e-6, 1.25e-6, 0.25e-6));
+        VIBRATION_LEVELS.put("VC_B", new VibrationLevel("VC-B", "安静实验室",
+                1.0e-6, 2.5e-6, 0.5e-6));
+        VIBRATION_LEVELS.put("VC_C", new VibrationLevel("VC-C", "标准实验室",
+                2.0e-6, 5.0e-6, 1.0e-6));
+        VIBRATION_LEVELS.put("VC_D", new VibrationLevel("VC-D", "一般工作区",
+                5.0e-6, 12.5e-6, 2.5e-6));
+        VIBRATION_LEVELS.put("VC_E", new VibrationLevel("VC-E", "工业环境",
+                12.5e-6, 25.0e-6, 5.0e-6));
+        VIBRATION_LEVELS.put("WORKSHOP", new VibrationLevel("WORKSHOP", "普通车间",
+                25.0e-6, 50.0e-6, 12.5e-6));
+
+        ISOLATION_SYSTEMS.put("NONE", new VibrationIsolationSystem("无减振",
+                1.0, 1.0, 1.0, 0.0));
+        ISOLATION_SYSTEMS.put("PASSIVE_RUBBER", new VibrationIsolationSystem("橡胶垫被动减振",
+                0.4, 0.5, 0.6, 3.5));
+        ISOLATION_SYSTEMS.put("PASSIVE_AIR", new VibrationIsolationSystem("空气弹簧被动减振",
+                0.1, 0.15, 0.2, 6.0));
+        ISOLATION_SYSTEMS.put("ACTIVE_PIEZO", new VibrationIsolationSystem("压电陶瓷主动减振",
+                0.03, 0.05, 0.08, 10.0));
+        ISOLATION_SYSTEMS.put("ACTIVE_MAGNETIC", new VibrationIsolationSystem("磁悬浮主动减振",
+                0.01, 0.02, 0.03, 15.0));
+    }
+
     @Transactional
     public CalibrationResult calibrateBalance(Integer deviceId, Integer balanceId, String method) {
         CalibrationDevice device = deviceRepository.findById(deviceId)
@@ -69,14 +98,33 @@ public class ModernCalibrationService {
         Random random = new Random(42);
         double noiseScale = device.getMinReadability() * 2;
 
+        String envVibLevel = determineEnvironmentVibrationLevel(device);
+        String isolationType = determineIsolationSystem(device);
+        VibrationLevel vibLevel = VIBRATION_LEVELS.getOrDefault(envVibLevel, VIBRATION_LEVELS.get("VC_C"));
+        VibrationIsolationSystem isolation = ISOLATION_SYSTEMS.getOrDefault(isolationType, ISOLATION_SYSTEMS.get("NONE"));
+
+        double residualVibrationX = vibLevel.displacementX * isolation.transmissibilityX;
+        double residualVibrationY = vibLevel.displacementY * isolation.transmissibilityY;
+        double residualVibrationZ = vibLevel.displacementZ * isolation.transmissibilityZ;
+        double rmsVibration = Math.sqrt(residualVibrationX * residualVibrationX
+                + residualVibrationY * residualVibrationY
+                + residualVibrationZ * residualVibrationZ) / Math.sqrt(3.0);
+
+        double knifeRadius = device.getKnifeEdgeRadius() != null ? device.getKnifeEdgeRadius() : 0.5;
+        double vibrationInducedError_mm = rmsVibration * 1000.0 / (knifeRadius * 1000.0);
+        double vibrationNoiseScale = Math.max(noiseScale * 0.5, vibrationInducedError_mm * 50.0);
+
+        double combinedNoiseScale = Math.sqrt(noiseScale * noiseScale + vibrationNoiseScale * vibrationNoiseScale);
+
         for (int i = 0; i < nominalMasses.length; i++) {
             double m = nominalMasses[i];
             double idealLeft = m * armRatio;
             double idealRight = m;
-            double noise = random.nextGaussian() * noiseScale;
+            double baseNoise = random.nextGaussian() * noiseScale;
+            double vibNoise = random.nextGaussian() * vibrationNoiseScale * Math.sin(2 * Math.PI * i / 3.0);
 
-            leftMeasurements[i] = idealLeft + noise;
-            rightMeasurements[i] = idealRight + noise;
+            leftMeasurements[i] = idealLeft + baseNoise + vibNoise;
+            rightMeasurements[i] = idealRight + baseNoise + vibNoise;
 
             Map<String, Object> posData = new HashMap<>();
             posData.put("nominal", m);
@@ -115,11 +163,15 @@ public class ModernCalibrationService {
         DescriptiveStatistics repeatabilityStats = new DescriptiveStatistics();
         for (int i = 0; i < 10; i++) {
             double m = 100.0;
-            double reading = m + random.nextGaussian() * noiseScale;
+            double baseNoise = random.nextGaussian() * noiseScale;
+            double vibNoise = random.nextGaussian() * vibrationNoiseScale;
+            double reading = m + baseNoise + vibNoise;
             repeatabilityStats.addValue(reading);
             rawMeasurements.put("rep_" + i, reading);
         }
         result.setRepeatabilityStd(repeatabilityStats.getStandardDeviation());
+
+        double vibrationUncertainty = vibrationInducedError_mm / Math.sqrt(3.0);
 
         double hysteresis = Math.abs(leftMeasurements[nominalMasses.length - 1]
                 - leftMeasurements[nominalMasses.length - 2]) / 100.0;
@@ -128,10 +180,26 @@ public class ModernCalibrationService {
         double combinedUncertainty = Math.sqrt(
                 result.getRepeatabilityStd() * result.getRepeatabilityStd() +
                 linearityError * linearityError +
-                result.getZeroPointDrift() * result.getZeroPointDrift()
+                result.getZeroPointDrift() * result.getZeroPointDrift() +
+                vibrationUncertainty * vibrationUncertainty * 10000.0
         ) / 100.0;
         double expandedUncertainty = combinedUncertainty * 2.0;
         result.setCorrectedUncertainty(expandedUncertainty);
+
+        Map<String, Object> vibrationAnalysis = new LinkedHashMap<>();
+        vibrationAnalysis.put("environmentLevel", envVibLevel);
+        vibrationAnalysis.put("environmentLabel", vibLevel.label);
+        vibrationAnalysis.put("isolationSystem", isolationType);
+        vibrationAnalysis.put("isolationLabel", isolation.name);
+        vibrationAnalysis.put("isolationEfficiency_dB", isolation.isolationEfficiencyDb);
+        vibrationAnalysis.put("inputVibrationX_um", vibLevel.displacementX * 1e6);
+        vibrationAnalysis.put("inputVibrationY_um", vibLevel.displacementY * 1e6);
+        vibrationAnalysis.put("inputVibrationZ_um", vibLevel.displacementZ * 1e6);
+        vibrationAnalysis.put("residualVibrationRMS_um", rmsVibration * 1e6);
+        vibrationAnalysis.put("vibrationInducedError_mm", vibrationInducedError_mm);
+        vibrationAnalysis.put("vibrationNoiseScale", vibrationNoiseScale);
+        vibrationAnalysis.put("vibrationUncertaintyComponent", vibrationUncertainty);
+        rawMeasurements.put("vibrationAnalysis", vibrationAnalysis);
 
         String grade;
         if (expandedUncertainty < 0.00001) grade = "E1";
@@ -260,11 +328,55 @@ public class ModernCalibrationService {
         addUncertaintySource(budget, "线性误差", result.getLinearityError() / 100.0, "B类", 50);
         addUncertaintySource(budget, "零点漂移", Math.abs(result.getZeroPointDrift()) / 100.0, "B类", 20);
         addUncertaintySource(budget, "滞后误差", result.getHysteresisError(), "B类", 10);
+        addUncertaintySource(budget, "环境振动影响", 0.00008, "B类", 30);
         addUncertaintySource(budget, "标准砝码不确定度", 0.0001, "B类", 50);
         addUncertaintySource(budget, "温度影响", 0.00005, "B类", 50);
         addUncertaintySource(budget, "湿度影响", 0.00002, "B类", 50);
 
         return budget;
+    }
+
+    private String determineEnvironmentVibrationLevel(CalibrationDevice device) {
+        Double minRead = device.getMinReadability();
+        String type = device.getDeviceType();
+        if (minRead != null && minRead < 1e-5) return "VC_A";
+        if (minRead != null && minRead < 1e-4) return "VC_B";
+        if ("PRECISION_CALIBRATOR".equals(type)) return "VC_C";
+        if ("STANDARD_CALIBRATOR".equals(type)) return "VC_D";
+        return "VC_E";
+    }
+
+    private String determineIsolationSystem(CalibrationDevice device) {
+        Double minRead = device.getMinReadability();
+        if (minRead != null && minRead < 1e-5) return "ACTIVE_MAGNETIC";
+        if (minRead != null && minRead < 1e-4) return "ACTIVE_PIEZO";
+        if (minRead != null && minRead < 1e-3) return "PASSIVE_AIR";
+        if (minRead != null && minRead < 1e-2) return "PASSIVE_RUBBER";
+        return "NONE";
+    }
+
+    public Map<String, Object> getVibrationMetadata() {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("vibrationLevels", VIBRATION_LEVELS.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> {
+                    Map<String, Object> info = new LinkedHashMap<>();
+                    info.put("label", e.getValue().label);
+                    info.put("displacementX_um", e.getValue().displacementX * 1e6);
+                    info.put("displacementY_um", e.getValue().displacementY * 1e6);
+                    info.put("displacementZ_um", e.getValue().displacementZ * 1e6);
+                    return info;
+                })));
+        meta.put("isolationSystems", ISOLATION_SYSTEMS.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> {
+                    Map<String, Object> info = new LinkedHashMap<>();
+                    info.put("name", e.getValue().name);
+                    info.put("transmissibilityX", e.getValue().transmissibilityX);
+                    info.put("transmissibilityY", e.getValue().transmissibilityY);
+                    info.put("transmissibilityZ", e.getValue().transmissibilityZ);
+                    info.put("isolationEfficiency_dB", e.getValue().isolationEfficiencyDb);
+                    return info;
+                })));
+        return meta;
     }
 
     private void addUncertaintySource(List<Map<String, Object>> budget, String source,
@@ -277,5 +389,40 @@ public class ModernCalibrationService {
         item.put("sensitivity", 1.0);
         item.put("contribution", value * value);
         budget.add(item);
+    }
+
+    private static class VibrationLevel {
+        String code;
+        String label;
+        double displacementX;
+        double displacementY;
+        double displacementZ;
+
+        public VibrationLevel(String code, String label, double displacementX,
+                              double displacementY, double displacementZ) {
+            this.code = code;
+            this.label = label;
+            this.displacementX = displacementX;
+            this.displacementY = displacementY;
+            this.displacementZ = displacementZ;
+        }
+    }
+
+    private static class VibrationIsolationSystem {
+        String name;
+        double transmissibilityX;
+        double transmissibilityY;
+        double transmissibilityZ;
+        double isolationEfficiencyDb;
+
+        public VibrationIsolationSystem(String name, double transmissibilityX,
+                                        double transmissibilityY, double transmissibilityZ,
+                                        double isolationEfficiencyDb) {
+            this.name = name;
+            this.transmissibilityX = transmissibilityX;
+            this.transmissibilityY = transmissibilityY;
+            this.transmissibilityZ = transmissibilityZ;
+            this.isolationEfficiencyDb = isolationEfficiencyDb;
+        }
     }
 }
