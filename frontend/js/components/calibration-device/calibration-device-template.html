@@ -1,0 +1,212 @@
+<div class="calibration-device-component">
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-target"></i> 校准装置控制面板</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">校准装置</label>
+                    <select class="form-select" data-role="device-select">
+                        <option value="">请选择校准装置...</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">待校天平</label>
+                    <select class="form-select" data-role="balance-select">
+                        <option value="">请选择待校天平...</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">校准方法</label>
+                    <select class="form-select" data-role="method-select">
+                        <option value="SEVEN_POINT">七点线性校准</option>
+                        <option value="THREE_POINT">三点校准</option>
+                        <option value="SUBSTITUTION">替代法</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" data-role="calibrate-btn">
+                        <i class="bi bi-play-circle"></i> 开始校准
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div data-role="result-banner"></div>
+
+    <div class="row mt-4" data-role="result-container" style="display: none;">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-graph-up-arrow"></i> 七点校准数据</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover" data-role="calibration-points-table">
+                            <thead>
+                                <tr>
+                                    <th>序号</th>
+                                    <th>标称质量 (g)</th>
+                                    <th>左盘示值 (g)</th>
+                                    <th>右盘示值 (g)</th>
+                                    <th>平均示值 (g)</th>
+                                    <th>误差 (%)</th>
+                                    <th>状态</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-speedometer2"></i> 误差指标</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2" data-role="error-metrics"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-calculator-fill"></i> 不确定度预算表 (JJF 1059.1-2012)</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm" data-role="uncertainty-table">
+                            <thead>
+                                <tr>
+                                    <th>不确定度来源</th>
+                                    <th>类型</th>
+                                    <th>数值</th>
+                                    <th>自由度</th>
+                                    <th>贡献占比</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="row mt-3 text-center">
+                        <div class="col-4">
+                            <div class="small text-muted">标准不确定度 u_c</div>
+                            <div class="h5 mb-0" data-role="std-uncertainty">-</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="small text-muted">包含因子 k</div>
+                            <div class="h5 mb-0" data-role="k-factor">-</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="small text-muted">扩展不确定度 U</div>
+                            <div class="h5 mb-0 text-primary" data-role="expanded-uncertainty">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-award"></i> 校准等级判定</h6>
+                </div>
+                <div class="card-body text-center">
+                    <div class="display-3 mb-2" data-role="grade-display">-</div>
+                    <div class="badge" data-role="grade-badge">-</div>
+                    <p class="mt-3 mb-0 small text-muted" data-role="grade-description">-</p>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-activity"></i> 振动分析</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="small text-muted">环境振动等级</span>
+                            <span class="small fw-bold" data-role="vib-level">-</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-info" data-role="vib-level-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="small text-muted">减振系统</span>
+                            <span class="small fw-bold" data-role="isolation-system">-</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-success" data-role="isolation-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="row text-center mt-3">
+                        <div class="col-6">
+                            <div class="small text-muted">输入振动 RMS</div>
+                            <div class="h6 mb-0" data-role="input-vib">-</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="small text-muted">残余振动 RMS</div>
+                            <div class="h6 mb-0" data-role="residual-vib">-</div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <div class="small text-muted">振动引入误差</div>
+                        <div class="h6 mb-0 text-warning" data-role="vib-error">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-sliders"></i> 振动模拟</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label small">环境振动等级</label>
+                        <select class="form-select form-select-sm" data-role="sim-vib-level">
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">减振系统</label>
+                        <select class="form-select form-select-sm" data-role="sim-isolation">
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">刀口半径 (mm)</label>
+                        <input type="number" class="form-control form-control-sm" data-role="sim-knife-radius" value="0.5" step="0.01" min="0.01">
+                    </div>
+                    <button class="btn btn-outline-primary btn-sm w-100" data-role="simulate-btn">
+                        <i class="bi bi-play"></i> 模拟振动影响
+                    </button>
+                    <div class="mt-3" data-role="sim-result" style="display: none;">
+                        <hr>
+                        <div class="text-center">
+                            <div class="small text-muted">可达到等级</div>
+                            <div class="h4 mb-1" data-role="sim-grade">-</div>
+                            <div class="small text-muted">扩展不确定度估计</div>
+                            <div class="h6 mb-0 text-primary" data-role="sim-uncertainty">-</div>
+                        </div>
+                        <p class="mt-2 mb-0 small" data-role="sim-assessment">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-4" data-role="history-container" style="display: none;">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="bi bi-clock-history"></i> 校准历史记录</h6>
+            <button class="btn btn-outline-secondary btn-sm" data-role="load-history-btn">
+                <i class="bi bi-arrow-clockwise"></i> 刷新
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="list-group" data-role="history-list"></div>
+        </div>
+    </div>
+</div>
