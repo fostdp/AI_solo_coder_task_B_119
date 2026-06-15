@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校准装置组件 - 使用示例</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body>
+    <div class="container py-4">
+        <h1 class="mb-4">校准装置组件 - 使用示例</h1>
+        <div id="calibrationDeviceContainer"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const ApiClient = {
+            get: async (url) => {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                return await response.json();
+            },
+            post: async (url, data) => {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                return await response.json();
+            }
+        };
+    </script>
+    <script src="CalibrationDeviceComponent.js"></script>
+    <script src="index.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const component = new CalibrationDeviceComponent(
+                'calibrationDeviceContainer',
+                ApiClient,
+                {
+                    apiBase: 'http://localhost:8080/api'
+                }
+            );
+
+            component.on('onCalibrationStart', () => {
+                console.log('校准开始...');
+            });
+
+            component.on('onCalibrationComplete', (result) => {
+                console.log('校准完成:', result);
+            });
+
+            component.on('onCalibrationError', (error) => {
+                console.error('校准出错:', error);
+            });
+
+            component.on('onDeviceChange', (deviceId) => {
+                console.log('选中装置:', deviceId);
+            });
+
+            component.on('onBalanceChange', (balanceId) => {
+                console.log('选中天平:', balanceId);
+            });
+
+            await component.init();
+            console.log('校准装置组件初始化完成');
+
+            window.calibrationDeviceComponent = component;
+        });
+    </script>
+</body>
+</html>
