@@ -1,0 +1,580 @@
+<template id="civilizationComparatorTemplate">
+  <style>
+    .civ-comp-container {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      color: #333;
+    }
+    .civ-comp-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 8px 8px 0 0;
+    }
+    .civ-comp-header h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .civ-comp-header .reliability-badge {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+    }
+    .civ-comp-body {
+      display: flex;
+      gap: 20px;
+      padding: 20px;
+      background: #f8f9fa;
+    }
+    .civ-comp-sidebar {
+      width: 280px;
+      flex-shrink: 0;
+    }
+    .civ-comp-main {
+      flex: 1;
+      min-width: 0;
+    }
+    .civ-comp-card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .civ-comp-card h4 {
+      margin: 0 0 12px 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: #555;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #eee;
+    }
+    .civ-quick-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .civ-quick-btn {
+      padding: 6px 14px;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    .civ-quick-btn:hover {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+    .civ-quick-btn.active {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+    .civ-list {
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .civ-list-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .civ-list-item:hover {
+      background: #f0f0ff;
+    }
+    .civ-list-item input[type="checkbox"] {
+      margin-right: 10px;
+      cursor: pointer;
+    }
+    .civ-list-item .civ-name {
+      flex: 1;
+      font-size: 13px;
+    }
+    .civ-list-item .civ-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+    .civ-list-item .civ-tag.eastern {
+      background: #e8f5e9;
+      color: #388e3c;
+    }
+    .civ-list-item .civ-tag.western {
+      background: #fce4ec;
+      color: #c2185b;
+    }
+    .civ-compare-btn {
+      width: 100%;
+      padding: 10px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 12px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .civ-compare-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    .civ-compare-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .radar-chart-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 10px 0;
+    }
+    .radar-chart-container canvas {
+      max-width: 100%;
+      height: auto;
+    }
+    .winner-banner {
+      text-align: center;
+      padding: 16px;
+      background: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
+      color: #5d4037;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .winner-banner .trophy-icon {
+      font-size: 28px;
+      margin-right: 8px;
+    }
+    .winner-banner .winner-text {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .winner-banner .winner-score {
+      font-size: 14px;
+      margin-top: 4px;
+      opacity: 0.9;
+    }
+    .ranking-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .ranking-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      background: #fafafa;
+    }
+    .ranking-item .rank-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 13px;
+      margin-right: 12px;
+      background: #ddd;
+      color: #666;
+    }
+    .ranking-item.rank-1 .rank-num {
+      background: linear-gradient(135deg, #ffd700, #ffaa00);
+      color: white;
+    }
+    .ranking-item.rank-2 .rank-num {
+      background: linear-gradient(135deg, #c0c0c0, #9e9e9e);
+      color: white;
+    }
+    .ranking-item.rank-3 .rank-num {
+      background: linear-gradient(135deg, #cd7f32, #a0522d);
+      color: white;
+    }
+    .ranking-item .rank-name {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .ranking-item .rank-score {
+      font-size: 14px;
+      font-weight: 600;
+      color: #667eea;
+    }
+    .ranking-item .rank-score-bar {
+      height: 4px;
+      background: #eee;
+      border-radius: 2px;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+    .ranking-item .rank-score-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      border-radius: 2px;
+      transition: width 0.6s ease;
+    }
+    .summary-section {
+      margin-bottom: 16px;
+    }
+    .summary-civ {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      border-left: 4px solid #667eea;
+      background: #fafbff;
+    }
+    .summary-civ .civ-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .summary-civ .civ-title h5 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .summary-civ .civ-score-badge {
+      padding: 4px 10px;
+      background: #667eea;
+      color: white;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .summary-civ .civ-period {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 10px;
+    }
+    .summary-civ .civ-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .summary-civ .civ-tag {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+    .summary-civ .civ-tag.type-equal {
+      background: #e8f5e9;
+      color: #388e3c;
+    }
+    .summary-civ .civ-tag.type-unequal {
+      background: #fff3e0;
+      color: #f57c00;
+    }
+    .summary-civ .civ-tag.category-east {
+      background: #fce4ec;
+      color: #c2185b;
+    }
+    .summary-civ .civ-tag.category-west {
+      background: #e0f7fa;
+      color: #0097a7;
+    }
+    .swot-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .swot-item h6 {
+      margin: 0 0 6px 0;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .swot-item.strengths h6 { color: #388e3c; }
+    .swot-item.weaknesses h6 { color: #f57c00; }
+    .swot-item ul {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 12px;
+      color: #555;
+    }
+    .swot-item li {
+      margin-bottom: 3px;
+    }
+    .analysis-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .analysis-item {
+      padding: 10px 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      background: #f5f7ff;
+      border-left: 3px solid #667eea;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .analysis-item.leading {
+      background: #e8f5e9;
+      border-left-color: #388e3c;
+    }
+    .analysis-item.comparison {
+      background: #e3f2fd;
+      border-left-color: #1976d2;
+    }
+    .analysis-item.evolution {
+      background: #f3e5f5;
+      border-left-color: #7b1fa2;
+    }
+    .expert-section {
+      margin-top: 12px;
+    }
+    .expert-btn {
+      width: 100%;
+      padding: 10px;
+      background: #fff;
+      border: 1px dashed #667eea;
+      color: #667eea;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .expert-btn:hover {
+      background: #667eea;
+      color: white;
+      border-style: solid;
+    }
+    .expert-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .expert-result {
+      margin-top: 10px;
+      padding: 12px;
+      background: #fffde7;
+      border-radius: 6px;
+      border: 1px solid #ffe082;
+    }
+    .expert-result .expert-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f57f17;
+      margin-bottom: 6px;
+    }
+    .expert-result .expert-content {
+      font-size: 12px;
+      color: #5d4037;
+      line-height: 1.5;
+    }
+    .data-reliability {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #f5f5f5;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
+    .data-reliability .reliability-label {
+      font-size: 12px;
+      color: #666;
+    }
+    .data-reliability .reliability-stars {
+      color: #ffc107;
+      font-size: 14px;
+    }
+    .data-reliability .reliability-value {
+      font-size: 12px;
+      font-weight: 600;
+      color: #333;
+    }
+    .dimension-scores {
+      margin-top: 8px;
+    }
+    .dim-score-item {
+      margin-bottom: 6px;
+    }
+    .dim-score-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 2px;
+    }
+    .dim-score-bar {
+      height: 6px;
+      background: #eee;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .dim-score-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+    .dim-score-fill.high { background: #4caf50; }
+    .dim-score-fill.medium { background: #ff9800; }
+    .dim-score-fill.low { background: #f44336; }
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+    .empty-state .empty-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    .empty-state .empty-text {
+      font-size: 14px;
+    }
+    .export-btn {
+      padding: 6px 14px;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .export-btn:hover {
+      background: #f5f5f5;
+    }
+  </style>
+
+  <div class="civ-comp-container">
+    <div class="civ-comp-header">
+      <h3>🏛️ 文明天平对比分析</h3>
+      <div class="reliability-badge">
+        <span class="reliability-stars">★★★★☆</span>
+        <span class="reliability-label">数据可靠性</span>
+      </div>
+    </div>
+
+    <div class="civ-comp-body">
+      <div class="civ-comp-sidebar">
+        <div class="civ-comp-card">
+          <h4>快捷对比</h4>
+          <div class="civ-quick-btns">
+            <button class="civ-quick-btn" data-preset="china-rome">中罗经典</button>
+            <button class="civ-quick-btn" data-preset="all-eastern">东方文明</button>
+            <button class="civ-quick-btn" data-preset="all-western">西方文明</button>
+            <button class="civ-quick-btn" data-preset="east-west">东西对比</button>
+          </div>
+        </div>
+
+        <div class="civ-comp-card">
+          <h4>选择文明</h4>
+          <div class="civ-list" data-role="civilization-list">
+            <div class="empty-state">
+              <div class="empty-icon">📜</div>
+              <div class="empty-text">加载中...</div>
+            </div>
+          </div>
+          <button class="civ-compare-btn" data-role="compare-btn" disabled>
+            开始对比分析
+          </button>
+        </div>
+
+        <div class="civ-comp-card">
+          <h4>数据可靠性</h4>
+          <div class="data-reliability">
+            <span class="reliability-stars">★★★★☆</span>
+            <span class="reliability-value">82%</span>
+            <span class="reliability-label">较高</span>
+          </div>
+          <div style="font-size: 11px; color: #888; margin-top: 6px;">
+            基于考古发掘与文献记载综合评估
+          </div>
+        </div>
+      </div>
+
+      <div class="civ-comp-main">
+        <div class="civ-comp-card" data-role="winner-card" style="display: none;">
+          <div class="winner-banner">
+            <span class="trophy-icon">🏆</span>
+            <span class="winner-text" data-role="winner-name">综合最优文明</span>
+            <div class="winner-score" data-role="winner-score">综合评分: --</div>
+          </div>
+        </div>
+
+        <div class="civ-comp-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h4 style="margin: 0;">六维雷达图</h4>
+            <button class="export-btn" data-role="export-btn">
+              📷 导出图片
+            </button>
+          </div>
+          <div class="radar-chart-container">
+            <canvas data-role="radar-canvas" width="500" height="420"></canvas>
+          </div>
+        </div>
+
+        <div class="civ-comp-card" data-role="ranking-card" style="display: none;">
+          <h4>综合排名</h4>
+          <ul class="ranking-list" data-role="ranking-list">
+          </ul>
+        </div>
+
+        <div class="civ-comp-card" data-role="summaries-card" style="display: none;">
+          <h4>文明详情</h4>
+          <div class="summary-section" data-role="summaries-content">
+          </div>
+        </div>
+
+        <div class="civ-comp-card" data-role="analysis-card" style="display: none;">
+          <h4>对比分析</h4>
+          <ul class="analysis-list" data-role="analysis-list">
+          </ul>
+        </div>
+
+        <div class="civ-comp-card">
+          <h4>专家校验</h4>
+          <button class="expert-btn" data-role="expert-btn" disabled>
+            🔍 获取专家校验意见
+          </button>
+          <div class="expert-result" data-role="expert-result" style="display: none;">
+            <div class="expert-title">👨‍🏫 专家意见</div>
+            <div class="expert-content" data-role="expert-content"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
