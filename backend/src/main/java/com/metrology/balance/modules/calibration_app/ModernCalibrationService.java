@@ -41,7 +41,7 @@ public class ModernCalibrationService {
 
         Balance balance = null;
         if (balanceId != null) {
-            balance = balanceRepository.findById(balanceId)
+            balance = balanceRepository.findById(balanceId.longValue())
                     .orElseThrow(() -> new IllegalArgumentException("天平不存在: " + balanceId));
         }
 
