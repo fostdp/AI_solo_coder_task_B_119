@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>古代天平衡器精度检定与误差分析系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>古代天平衡器精度检定与误差分析系统</h1>
+            <div class="header-stats">
+                <div class="stat-item">
+                    <span class="stat-label">天平总数</span>
+                    <span class="stat-value" id="totalBalances">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">活动告警</span>
+                    <span class="stat-value alert-value" id="activeAlerts">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">24h测量</span>
+                    <span class="stat-value" id="recentMeasurements">0</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <h3>天平列表</h3>
+                    <div class="balance-list" id="balanceList">
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>筛选</h3>
+                    <select id="dynastyFilter">
+                        <option value="">全部朝代</option>
+                    </select>
+                    <select id="typeFilter">
+                        <option value="">全部类型</option>
+                        <option value="EQUAL_ARM">等臂天平</option>
+                        <option value="UNEQUAL_ARM">不等臂天平</option>
+                    </select>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>分析功能</h3>
+                    <button class="btn btn-primary" id="btnErrorAnalysis">误差分析(蒙特卡洛)</button>
+                    <button class="btn btn-secondary" id="btnWeightSystem">权衡制度分析</button>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Feature 新功能</h3>
+                    <button class="btn btn-success btn-block" data-main-tab="manufacturing" style="width: 100%;">
+                        <i class="bi bi-gear"></i>
+                        制造工艺反演
+                    </button>
+                    <button class="btn btn-info btn-block" data-main-tab="civilization" style="width: 100%; margin-top: 8px;">
+                        <i class="bi bi-globe-asia-australia"></i>
+                        文明对比
+                    </button>
+                    <button class="btn btn-warning btn-block" data-main-tab="calibration" style="width: 100%; margin-top: 8px;">
+                        <i class="bi bi-target"></i>
+                        现代校准应用
+                    </button>
+                    <button class="btn btn-danger btn-block" data-main-tab="virtual" style="width: 100%; margin-top: 8px;">
+                        <i class="bi bi-controller"></i>
+                        虚拟称量体验
+                    </button>
+                    <button class="btn btn-outline-dark btn-block" data-main-tab="main" style="width: 100%; margin-top: 8px;">
+                        <i class="bi bi-arrow-left"></i>
+                        返回主视图
+                    </button>
+                </div>
+            </aside>
+
+            <main class="content-area">
+                <div class="main-view" id="mainView">
+                <div class="viewer-container">
+                    <div class="viewer-header">
+                        <h2 id="currentBalanceName">请选择天平查看三维模型</h2>
+                        <div class="viewer-controls">
+                            <button class="btn-icon" id="btnRotate" title="自动旋转">
+                                ⟳
+                            </button>
+                            <button class="btn-icon" id="btnReset" title="重置视角">
+                                ⌂
+                            </button>
+                        </div>
+                    </div>
+                    <div id="threeCanvas" class="three-canvas"></div>
+                    <div class="viewer-legend">
+                        <div class="legend-item">
+                            <span class="legend-color beam-highlight"></span>
+                            <span>横梁</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color knife-highlight"></span>
+                            <span>刀口</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color pan"></span>
+                            <span>秤盘</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color pillar"></span>
+                            <span>立柱</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-panel">
+                    <div class="detail-tabs">
+                        <button class="tab-btn active" data-tab="info">基本信息</button>
+                        <button class="tab-btn" data-tab="error">误差曲线</button>
+                        <button class="tab-btn" data-tab="analysis">精度分析</button>
+                        <button class="tab-btn" data-tab="alerts">告警记录</button>
+                    </div>
+
+                    <div class="tab-content active" id="tab-info">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <label>天平编号</label>
+                                <span id="infoCode">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>类型</label>
+                                <span id="infoType">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>朝代</label>
+                                <span id="infoDynasty">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>最大称量</label>
+                                <span id="infoCapacity">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>左臂长度</label>
+                                <span id="infoLeftArm">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>右臂长度</label>
+                                <span id="infoRightArm">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>刀口半径</label>
+                                <span id="infoKnife">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>精度等级</label>
+                                <span id="infoGrade">-</span>
+                            </div>
+                            <div class="info-item full-width">
+                                <label>出土地点</label>
+                                <span id="infoLocation">-</span>
+                            </div>
+                            <div class="info-item full-width">
+                                <label>描述</label>
+                                <span id="infoDesc">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="tab-error">
+                        <div class="chart-container">
+                            <canvas id="errorChart"></canvas>
+                        </div>
+                        <div class="chart-stats">
+                            <div class="stat-box">
+                                <span class="stat-box-label">平均误差</span>
+                                <span class="stat-box-value" id="avgError">-</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-box-label">标准差</span>
+                                <span class="stat-box-value" id="stdDev">-</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-box-label">最大误差</span>
+                                <span class="stat-box-value" id="maxError">-</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-box-label">测量次数</span>
+                                <span class="stat-box-value" id="measureCount">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="tab-analysis">
+                        <div class="analysis-result" id="analysisResult">
+                            <p class="placeholder-text">点击"误差分析(蒙特卡洛)"按钮进行分析</p>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="tab-alerts">
+                        <div class="alert-list" id="alertList">
+                            <p class="placeholder-text">暂无告警记录</p>
+                        </div>
+                    </div>
+                </div>
+                </div>
+
+                <div class="feature-panel" id="manufacturingPanel" style="display: none;">
+                    <div class="panel-header">
+                        <h2><i class="bi bi-gear-wide-connected"></i> 古代天平制造工艺反演</h2>
+                        <div class="panel-actions">
+                            <button class="btn btn-secondary" data-main-tab="main">
+                                <i class="bi bi-arrow-left"></i> 返回
+                            </button>
+                        </div>
+                    </div>
+                    <div class="panel-content">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">选择天平</label>
+                                <select class="form-select" id="analysisBalanceSelect">
+                                    <option value="">请选择天平...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end gap-2">
+                                <button class="btn btn-success" id="analyzeBtn">
+                                    <i class="bi bi-search"></i> 开始分析
+                                </button>
+                                <button class="btn btn-outline-primary" id="loadHistoryBtn">
+                                    <i class="bi bi-clock-history"></i> 历史记录
+                                </button>
+                                <button class="btn btn-outline-secondary" id="exportAnalysisBtn">
+                                    <i class="bi bi-download"></i> 导出
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="overallGradeBanner"></div>
+
+                        <div class="row mt-4">
+                            <div class="col-md-8">
+                                <div id="dimensionScores"></div>
+                                <div class="mt-4" id="inferredCraft"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div id="wearAnalysis"></div>
+                                <div class="mt-4" id="analysisHistory">
+                                    <div class="alert alert-info">点击"历史记录"查看历史分析</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="feature-panel" id="civilizationPanel" style="display: none;">
+                    <div class="panel-header">
+                        <h2><i class="bi bi-globe-asia-australia"></i> 不同文明天平对比</h2>
+                        <div class="panel-actions">
+                            <button class="btn btn-outline-secondary" id="exportRadarBtn">
+                                <i class="bi bi-image"></i> 导出雷达图
+                            </button>
+                            <button class="btn btn-secondary" data-main-tab="main">
+                                <i class="bi bi-arrow-left"></i> 返回
+                            </button>
+                        </div>
+                    </div>
+                    <div class="panel-content">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div id="civilizationList"></div>
+                            </div>
+                            <div class="col-md-9">
+                                <div id="overallWinner"></div>
+                                <div class="card mb-4">
+                                    <div class="card-body">
+                                        <canvas id="radarChart" width="500" height="400"></canvas>
+                                    </div>
+                                </div>
+                                <div id="civilizationSummaries"></div>
+                                <div class="mt-4" id="comparativeAnalysis"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="feature-panel" id="calibrationPanel" style="display: none;">
+                    <div class="panel-header">
+                        <h2><i class="bi bi-target"></i> 现代天平校准应用</h2>
+                        <div class="panel-actions">
+                            <button class="btn btn-outline-secondary" id="generateReportBtn">
+                                <i class="bi bi-file-earmark-text"></i> 生成证书
+                            </button>
+                            <button class="btn btn-outline-secondary" id="exportReportBtn">
+                                <i class="bi bi-download"></i> 导出报告
+                            </button>
+                            <button class="btn btn-secondary" data-main-tab="main">
+                                <i class="bi bi-arrow-left"></i> 返回
+                            </button>
+                        </div>
+                    </div>
+                    <div class="panel-content">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <label class="form-label">校准装置</label>
+                                        <select class="form-select" id="calibrationDeviceSelect">
+                                            <option value="">请选择...</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">待校天平</label>
+                                        <select class="form-select" id="calibrationBalanceSelect">
+                                            <option value="">请选择...</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">校准方法</label>
+                                        <select class="form-select" id="calibrationMethodSelect">
+                                            <option value="SEVEN_POINT">七点线性校准</option>
+                                            <option value="THREE_POINT">三点校准</option>
+                                            <option value="SUBSTITUTION">替代法</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3 d-flex align-items-end gap-2">
+                                        <button class="btn btn-primary flex-grow-1" id="calibrateBtn">
+                                            <i class="bi bi-play-circle"></i> 开始校准
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-md-12 d-flex gap-2">
+                                        <button class="btn btn-outline-primary btn-sm" id="loadHistoryBtn">
+                                            <i class="bi bi-clock-history"></i> 校准历史
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="calibrationResultBanner"></div>
+
+                        <div class="row mt-4">
+                            <div class="col-md-8">
+                                <div id="errorMetrics"></div>
+                                <div class="mt-4" id="calibrationCurve"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div id="environmentData"></div>
+                                <div class="mt-4" id="adjustmentResult"></div>
+                                <div class="mt-4" id="calibrationHistory">
+                                    <div class="alert alert-info">点击"校准历史"查看历史记录</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4" id="uncertaintyBudget"></div>
+                    </div>
+                </div>
+
+                <div class="feature-panel" id="virtualWeighingPanel" style="display: none;">
+                    <div class="panel-header">
+                        <h2><i class="bi bi-controller"></i> 公众虚拟称量体验</h2>
+                        <div class="panel-actions">
+                            <div class="btn-group">
+                                <button class="btn btn-outline-primary active" id="balanceTypeEqual">
+                                    ⚖️ 等臂天平
+                                </button>
+                                <button class="btn btn-outline-primary" id="balanceTypeUnequal">
+                                    🔧 不等臂天平
+                                </button>
+                            </div>
+                            <button class="btn btn-outline-secondary" id="quickExperienceBtn">
+                                <i class="bi bi-lightning"></i> 快速体验
+                            </button>
+                            <button class="btn btn-secondary" data-main-tab="main">
+                                <i class="bi bi-arrow-left"></i> 返回
+                            </button>
+                        </div>
+                    </div>
+                    <div class="panel-content">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">物品库</h6>
+                                    </div>
+                                    <div class="card-body p-2" style="max-height: 600px; overflow-y: auto;">
+                                        <div id="itemPalette"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-9">
+                                <div class="row mb-4">
+                                    <div class="col-md-5">
+                                        <div class="card pan-drop-zone" id="leftPanDrop">
+                                            <div class="card-header d-flex justify-content-between align-items-center">
+                                                <h6 class="mb-0">⬅️ 左盘</h6>
+                                                <div>
+                                                    <div id="leftWeightSummary"></div>
+                                                </div>
+                                            </div>
+                                            <div class="card-body p-2" style="min-height: 200px; max-height: 250px; overflow-y: auto;">
+                                                <div id="leftPanItems"></div>
+                                            </div>
+                                            <div class="card-footer">
+                                                <button class="btn btn-sm btn-outline-danger" id="clearLeftBtn">
+                                                    <i class="bi bi-trash"></i> 清空
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-2 d-flex flex-column justify-content-center align-items-center">
+                                        <button class="btn btn-outline-secondary btn-sm mb-2" id="swapPansBtn">
+                                            <i class="bi bi-arrow-left-right"></i> 交换
+                                        </button>
+                                        <button class="btn btn-lg btn-success" id="weighBtn" style="width: 100%;">
+                                            <i class="bi bi-play-fill"></i><br>称量
+                                        </button>
+                                    </div>
+
+                                    <div class="col-md-5">
+                                        <div class="card pan-drop-zone" id="rightPanDrop">
+                                            <div class="card-header d-flex justify-content-between align-items-center">
+                                                <h6 class="mb-0">右盘 ➡️</h6>
+                                                <div>
+                                                    <div id="rightWeightSummary"></div>
+                                                </div>
+                                            </div>
+                                            <div class="card-body p-2" style="min-height: 200px; max-height: 250px; overflow-y: auto;">
+                                                <div id="rightPanItems"></div>
+                                            </div>
+                                            <div class="card-footer">
+                                                <button class="btn btn-sm btn-outline-danger" id="clearRightBtn">
+                                                    <i class="bi bi-trash"></i> 清空
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="balanceStatus"></div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div id="convertedWeights"></div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div id="culturalContext"></div>
+                                        <div id="physicsInfo"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+
+        <div class="alert-banner" id="alertBanner" style="display: none;">
+            <span class="alert-icon">⚠</span>
+            <span class="alert-message" id="alertMessage">新的告警</span>
+            <button class="alert-close" onclick="document.getElementById('alertBanner').style.display='none'">×</button>
+        </div>
+    </div>
+
+    <div class="modal" id="weightSystemModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>古代权衡制度分析</h2>
+                <button class="modal-close" onclick="closeModal('weightSystemModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-controls">
+                    <select id="wsDynasty">
+                        <option value="">全部朝代</option>
+                    </select>
+                    <button class="btn btn-primary" id="btnRunWS">运行分析</button>
+                </div>
+                <div class="ws-result" id="wsResult">
+                    <p class="placeholder-text">选择朝代并点击"运行分析"开始聚类分析</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.5.2/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/dist/stomp.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/balance3d.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/metrology_panel.js"></script>
+    <script src="js/radar_chart.js"></script>
+    <script src="js/manufacturing_panel.js"></script>
+    <script src="js/civilization_panel.js"></script>
+    <script src="js/calibration_panel.js"></script>
+    <script src="js/virtual_weighing_panel.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
